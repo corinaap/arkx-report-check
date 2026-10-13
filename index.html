@@ -1,0 +1,444 @@
+<title>ARKX Report Check</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one narrow column - what we check, the drop zone, the verdict card. Tool first, no hero. */
+:root {
+  --bg: #f4f6f8; --surface: #ffffff; --ink: #17212b; --muted: #5a6876; --line: #d9e0e7;
+  --accent: #1d6a86; --accent-soft: #e3f0f5;
+  --ready: #2b7a4b; --ready-soft: #e4f3ea; --fix: #a35f00; --fix-soft: #fbefdc;
+  --wrong: #b0322a; --wrong-soft: #f9e4e2;
+  --sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #11171d; --surface: #182029; --ink: #e6ecf1; --muted: #9aa8b5; --line: #2a3541;
+  --accent: #5fb3d1; --accent-soft: #1b3440;
+  --ready: #6cc794; --ready-soft: #173325; --fix: #f0ad4e; --fix-soft: #3a2a12;
+  --wrong: #f08a80; --wrong-soft: #3d1c1a; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #11171d; --surface: #182029; --ink: #e6ecf1; --muted: #9aa8b5; --line: #2a3541;
+  --accent: #5fb3d1; --accent-soft: #1b3440;
+  --ready: #6cc794; --ready-soft: #173325; --fix: #f0ad4e; --fix-soft: #3a2a12;
+  --wrong: #f08a80; --wrong-soft: #3d1c1a; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 15px; line-height: 1.55; }
+.wrap { max-width: 44rem; margin: 0 auto; padding-inline: 16px; padding-block: 2.5rem 4rem; display: grid; gap: 1.75rem; }
+h1 { font-size: 1.75rem; font-weight: 600; margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+h2 { font-size: 1rem; font-weight: 600; margin: 0; }
+p { margin: 0; }
+.lede { color: var(--muted); max-width: 60ch; }
+.eyebrow { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+header { display: grid; gap: 0.5rem; }
+.privacy { display: flex; gap: 0.5rem; align-items: flex-start; font-size: 0.875rem; color: var(--muted); }
+.privacy svg { flex: none; margin-top: 0.2rem; }
+
+.checks { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 0.75rem 1.5rem; padding: 0; margin: 0; list-style: none; }
+.checks li { display: grid; gap: 0.15rem; padding-top: 0.6rem; border-top: 1px solid var(--line); min-width: 0; }
+.checks b { font-weight: 600; font-size: 0.9rem; }
+.checks span { color: var(--muted); font-size: 0.85rem; }
+code, .mono { font-family: var(--mono); font-size: 0.85em; }
+
+.drop { border: 1.5px dashed var(--line); border-radius: 10px; background: var(--surface); padding: 1.75rem 1.25rem;
+  display: grid; justify-items: center; gap: 0.6rem; text-align: center; cursor: pointer; transition: border-color .15s, background .15s; }
+.drop:hover, .drop.over { border-color: var(--accent); background: var(--accent-soft); }
+.drop:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.drop input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.btn { font: inherit; font-weight: 600; background: var(--accent); color: var(--surface); border: 0; border-radius: 6px; padding: 0.55rem 1.1rem; cursor: pointer; }
+.drop small { color: var(--muted); }
+.quota { font-family: var(--mono); font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.drop.disabled { cursor: not-allowed; opacity: 0.6; }
+
+.result { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.result-head { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; align-items: baseline; justify-content: space-between; padding: 1rem 1.25rem; border-bottom: 1px solid var(--line); }
+.pill { font-weight: 600; font-size: 0.85rem; padding: 0.2rem 0.65rem; border-radius: 999px; }
+.pill.ready { background: var(--ready-soft); color: var(--ready); }
+.pill.fix { background: var(--fix-soft); color: var(--fix); }
+.pill.wrong_file { background: var(--wrong-soft); color: var(--wrong); }
+.pill.example { background: var(--accent-soft); color: var(--accent); }
+.fname { font-family: var(--mono); font-size: 0.8rem; color: var(--muted); overflow-wrap: anywhere; min-width: 0; }
+.result-body { padding: 1rem 1.25rem 1.25rem; display: grid; gap: 1rem; }
+.result-body ul { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.4rem; }
+.levels { display: grid; grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr)); gap: 0.4rem; }
+.lv { display: flex; gap: 0.45rem; align-items: center; font-size: 0.875rem; }
+.dot { width: 0.6rem; height: 0.6rem; border-radius: 50%; border: 1.5px solid var(--muted); flex: none; }
+.lv.on .dot { background: var(--ready); border-color: var(--ready); }
+.lv:not(.on) { color: var(--muted); }
+.note { font-size: 0.85rem; color: var(--muted); }
+.busy { padding: 1.25rem; color: var(--muted); font-family: var(--mono); font-size: 0.85rem; }
+footer { font-size: 0.8rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 1rem; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">ARKX practical test</div>
+    <h1>Check your report before you upload it</h1>
+    <p class="lede">Drop in your report and see straight away whether anything is missing. Fix it, check again, and upload it on the platform when it's ready.</p>
+    <p class="privacy"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.5" d="M4 7V5a4 4 0 0 1 8 0v2M3 7h10v7H3z"/></svg>
+      <span>Your file stays on your computer. It is read in this browser tab and is not uploaded or stored anywhere.</span></p>
+  </header>
+
+  <section aria-labelledby="what">
+    <h2 id="what" style="margin-bottom:.75rem">What the check looks for</h2>
+    <ul class="checks">
+      <li><b>The six required levels</b><span>Bad Robot, Master of Resources, Blind Network Ninja, The Shape Shifter, The Octopus, The Heist</span></li>
+      <li><b>A flag for each solved level</b><span>Copied exactly as the platform returned it, e.g. <code>flag-</code> followed by six characters</span></li>
+      <li><b>Five parts per level</b><span>Result, exploit, root cause, impact and severity, mapping</span></li>
+      <li><b>Screenshots</b><span>At least one per solved level, embedded in the file</span></li>
+    </ul>
+  </section>
+
+  <label class="drop" id="drop" for="file">
+    <input type="file" id="file" accept=".pdf,.docx,.odt">
+    <span class="btn" aria-hidden="true">Choose your report</span>
+    <small>or drop it here &middot; PDF, Word (.docx) or .odt</small>
+    <span class="quota" id="quota">3 of 3 checks left today</span>
+  </label>
+
+  <section class="result" id="result" aria-live="polite">
+    <div class="result-head"><span class="pill example">Example result</span><span class="fname">ARKX_Report_example.pdf</span></div>
+    <div class="result-body">
+      <p><b>Fix these before you upload:</b></p>
+      <ul><li>Only Bad Robot and The Shape Shifter show a flag. Please complete more levels, ideally all six, and add each flag.</li>
+          <li>There are no screenshots. Please add a screenshot of each solved level.</li></ul>
+      <div class="levels" id="ex-levels"></div>
+      <p class="note">Your own result appears here after you choose a file.</p>
+    </div>
+  </section>
+
+  <footer>This is an automatic first check, not the review. A ready result means nothing obvious is missing; a reviewer still reads every report. You can run 3 checks a day.</footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+(function (root) {
+"use strict";
+function lvl(track, n) {
+return track + "\\W{0,4}(?:l|lvl|level)\\W{0,2}0?" + n + "\\b";
+}
+var REQUIRED = [
+["Bad Robot", "bad[\\s_-]*robot|" + lvl("advanced", 5)],
+["Master of Resources", "master[\\s_-]*of[\\s_-]*resources?|" + lvl("advanced", 7)],
+["Blind Network Ninja", "blind[\\s_-]*network[\\s_-]*ninja|" + lvl("advanced", 9)],
+["The Shape Shifter", "shape[\\s_-]*shifter|" + lvl("expert", 6)],
+["The Octopus", "octopus|" + lvl("expert", 7)],
+["The Heist", "\\bheist\\b|" + lvl("expert", 8)]
+];
+var BEGINNER = [
+["Context Gateway", "context[\\s_-]*gateway"], ["Magic Door", "magic[\\s_-]*door"],
+["Lost Archives", "lost[\\s_-]*archives?"], ["File Manager", "file[\\s_-]*manager"],
+["Mailman", "\\bmailman\\b"], ["Scheduler", "\\bscheduler\\b"]
+];
+var GENUINE = "\\bflag-[0-9a-f]{6}\\b";
+var OTHER_FLAG = "\\b(?:flag|arkx|ctf)\\s*[{\\[][^}\\]\\n]{2,80}[}\\]]|\\bflag-(?=[0-9a-z]*\\d)[0-9a-z]{3,12}\\b";
+var PLACEHOLDER_FLAG = "flag-[a-z0-9-]*x{3,}|\\[\\s*paste\\s+flag\\s*\\]|<flag>";
+var PARTS = [
+["Result", "\\bresult|\\boutcome|\\bflag\\b|captured|solved"],
+["Exploit", "exploit|payload|prompt(?:s)? (?:used|sent)|steps? to reproduce|attack (?:steps|chain|path)|reproduc"],
+["Root cause", "root[\\s_-]*cause|underlying (?:issue|cause|flaw)|why it work"],
+["Impact & severity", "impact|severity|cvss|\\bcritical\\b|\\bhigh\\b"],
+["Mapping", "owasp|atlas|\\bcwe\\b|mitre|\\bllm0\\d|\\bmapping"]
+];
+var HEDGES = "\\bmay (?:be|allow|attempt|lead)\\b|\\bcould (?:potentially|allow|be)\\b|\\bwould likely\\b" +
+"|not (?:been )?(?:established|confirmed|verified)|subject to (?:confirmation|verification)" +
+"|if confirmed|hypothetical|scenario-based|no live testing|preliminary severity" +
+"|was not (?:solved|captured|obtained)|no flag (?:was )?(?:obtained|captured)|unable to (?:capture|obtain|solve)";
+var CHATBOT = "use code with caution|here is (?:a|the|your) (?:revised|draft|sample) report|" +
+"\\[insert [^\\]]+\\]|\\[your name\\]|candidate evidence: record the actual|" +
+"insert actual test evidence|or state no flag captured";
+var CV_WORDS = "curriculum vitae|\\bresume\\b|work experience|professional experience|" +
+"\\beducation\\b|\\bskills\\b|\\breferences\\b|career objective|languages spoken";
+var INVOICE_WORDS = "\\binvoice\\b|\\bgstin?\\b|order (?:id|no|number)|tax invoice|" +
+"\\bqty\\b|grand total|billing address|shipping address";
+var TEMPLATE_WORDS = "\\[[^\\]\\n]{2,40}\\]|_{5,}|<[a-z ]{3,30}>|\\bY/N\\b|placeholder|" +
+"record the actual|describe (?:the|your) |insert ";
+var _q1 = 4, _q2 = 6, _q3 = 2500;
+var REQ_LIST = "Bad Robot, Master of Resources, Blind Network Ninja, The Shape Shifter, The Octopus and The Heist";
+function rx(src, flags) { return new RegExp(src, flags); }
+function all(src, text, flags) { return text.match(rx(src, "g" + (flags || ""))) || []; }
+function has(src, text, flags) { return rx(src, flags || "").test(text); }
+function count(src, text) { return all(src, text, "i").length; }
+function uniq(a) { return Array.from(new Set(a)).sort(); }
+function join(names) {
+return names.length === 1 ? names[0] : names.slice(0, -1).join(", ") + " and " + names[names.length - 1];
+}
+function normalise(text) {
+return text.normalize("NFKC").replace(/[‐-―−]/g, "-");
+}
+function countPdfImages(bytes) {
+var s = new TextDecoder("latin1").decode(bytes);
+return (s.match(/\/Subtype\s*\/Image\b/g) || []).length;
+}
+async function readPdf(bytes) {
+var images = countPdfImages(bytes);
+var doc = await root.pdfjsLib.getDocument({ data: bytes.slice(), isEvalSupported: false }).promise;
+var pages = [];
+for (var p = 1; p <= doc.numPages; p++) {
+var page = await doc.getPage(p);
+var tc = await page.getTextContent();
+var out = "";
+for (var k = 0; k < tc.items.length; k++) {
+var it = tc.items[k];
+if (it.str === undefined) continue;
+out += it.str + (it.hasEOL ? "\n" : "");
+}
+pages.push(out);
+page.cleanup();
+}
+await doc.destroy();
+return { text: pages.join("\n"), images: images };
+}
+function xmlText(xml, paraTag, extra) {
+var doc = new DOMParser().parseFromString(xml, "application/xml");
+var paras = doc.getElementsByTagName(paraTag), out = [];
+for (var i = 0; i < paras.length; i++) out.push(extra(paras[i]));
+return out.join("\n");
+}
+async function readDocx(bytes) {
+var zip = await root.JSZip.loadAsync(bytes);
+var xml = await zip.file("word/document.xml").async("string");
+var text = xmlText(xml, "w:p", function (p) {
+var s = "", nodes = p.getElementsByTagName("*");
+for (var j = 0; j < nodes.length; j++) {
+var t = nodes[j].nodeName;
+if (t === "w:t") s += nodes[j].textContent;
+else if (t === "w:tab") s += "\t";
+else if (t === "w:br") s += "\n";
+}
+return s;
+});
+var images = Object.keys(zip.files).filter(function (n) {
+return n.indexOf("word/media/") === 0 && !/\.(emf|wmf)$/i.test(n);
+}).length;
+return { text: text, images: images };
+}
+async function readOdt(bytes) {
+var zip = await root.JSZip.loadAsync(bytes);
+var xml = await zip.file("content.xml").async("string");
+xml = xml.replace(/<\/text:(?:p|h)>/g, "\n");
+var images = Object.keys(zip.files).filter(function (n) { return n.indexOf("Pictures/") === 0; }).length;
+return { text: xml.replace(/<[^>]+>/g, " "), images: images };
+}
+async function readReport(name, bytes) {
+var low = name.toLowerCase(), r;
+var isPdf = bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46;
+if (isPdf || /\.pdf$/.test(low)) r = await readPdf(bytes);
+else if (/\.odt$/.test(low)) r = await readOdt(bytes);
+else if (/\.docx$/.test(low) || (bytes[0] === 0x50 && bytes[1] === 0x4b)) r = await readDocx(bytes);
+else throw new Error("unsupported file type");
+r.text = normalise(r.text);
+return r;
+}
+function sections(text) {
+var hits = [];
+REQUIRED.forEach(function (l) {
+var re = rx(l[1], "gi"), m;
+while ((m = re.exec(text))) { hits.push([m.index, l[0]]); if (m[0] === "") re.lastIndex++; }
+});
+hits.sort(function (a, b) { return a[0] - b[0]; });
+var out = {};
+REQUIRED.forEach(function (l) { out[l[0]] = ""; });
+for (var i = 0; i < hits.length; i++) {
+var end = text.length;
+for (var j = i + 1; j < hits.length; j++) {
+if (hits[j][1] !== hits[i][1]) { end = hits[j][0]; break; }
+}
+out[hits[i][1]] += text.slice(hits[i][0], end) + "\n";
+}
+return out;
+}
+var FIX_TYPO = { l: "1", o: "0", i: "1" };
+function oddFlags(text, genuine) {
+var out = new Set();
+all(OTHER_FLAG, text, "i").forEach(function (f) {
+var low = f.toLowerCase();
+if (has("^" + GENUINE + "$", low) && f === low) return;
+var typo = low.slice(0, 5) + low.slice(5).replace(/[loi]/g, function (c) { return FIX_TYPO[c]; });
+if (has("^" + GENUINE + "$", typo)) return;
+if (low.indexOf("flag-") === 0) {
+var body = low.slice(5).replace(/x+$/, "");
+var prefix = genuine.some(function (g) { return g.slice(5).indexOf(body) === 0; });
+if (prefix || (/^[0-9a-f]{1,6}$/.test(body) && low.length - 5 <= 6)) return;
+}
+out.add(f);
+});
+return Array.from(out).sort();
+}
+function analyse(text, images) {
+var nChars = text.replace(/\s+/g, " ").trim().length;
+var secs = sections(text);
+var named = REQUIRED.map(function (l) { return l[0]; }).filter(function (n) { return secs[n]; });
+var beginner = BEGINNER.filter(function (b) { return has(b[1], text, "i"); }).map(function (b) { return b[0]; });
+var genuine = uniq(all(GENUINE, text));
+var levels = {}, solved = [];
+REQUIRED.forEach(function (l) {
+var body = secs[l[0]];
+if (!body) { levels[l[0]] = { named: false, flag: false, partsMissing: PARTS.map(function (p) { return p[0]; }) }; return; }
+levels[l[0]] = {
+named: true,
+flag: has(GENUINE, body),
+partsMissing: PARTS.filter(function (p) { return !has(p[1], body, "i"); }).map(function (p) { return p[0]; })
+};
+if (levels[l[0]].flag) solved.push(l[0]);
+});
+return {
+chars: nChars, images: images, levelsNamed: named, levelsWithFlag: solved, beginner: beginner,
+genuineFlags: genuine, otherFlags: oddFlags(text, genuine).slice(0, 10),
+placeholderFlags: genuine.length < 2 ? uniq(all(PLACEHOLDER_FLAG, text, "i")).slice(0, 5) : [],
+hedges: count(HEDGES, text),
+residue: uniq(all(CHATBOT, text, "i").map(function (s) { return s.toLowerCase(); })).slice(0, 5),
+cvHits: count(CV_WORDS, text), invoiceHits: count(INVOICE_WORDS, text),
+templateHits: count(TEMPLATE_WORDS, text), levels: levels
+};
+}
+function verdict(a) {
+var t = [], i = [], nNamed = a.levelsNamed.length, nSolved = a.levelsWithFlag.length;
+if (a.chars < 200 && a.images > 0)
+return { verdict: "fix", reasons: ["The file appears to be scanned images, so the text can't be read. Please export the report from your editor as a text PDF or .docx."],
+};
+if (a.chars < 200)
+return { verdict: "wrong_file", reasons: ["The file has no readable report text. Please upload your ARKX report."],
+};
+if (nNamed === 0 && !a.beginner.length) {
+var what = a.invoiceHits >= 3 ? "an invoice" : a.cvHits >= 3 ? "a CV" : null;
+t.push((what ? "This file looks like " + what + ", not the ARKX report. "
+: "The file doesn't cover any of the ARKX levels. ") + "Please upload your write-up of " + REQ_LIST + ".");
+return { verdict: "wrong_file", reasons: t };
+}
+if (a.templateHits >= 12 && nSolved === 0 && !a.genuineFlags.length) {
+t.push("The file looks like the blank report template. Please fill in your own results, flags, prompts and screenshots for each level, then upload it.");
+return { verdict: "wrong_file", reasons: t };
+}
+var blocking = false;
+var wrongTrack = a.beginner.length > 0 && nNamed < 3;
+if (wrongTrack) {
+t.push("The report covers Beginner-track levels, which don't count. Please report on the six required levels: " + REQ_LIST + ".");
+blocking = true;
+} else if (nNamed < 6) {
+var missing = REQUIRED.map(function (l) { return l[0]; }).filter(function (n) { return a.levelsNamed.indexOf(n) < 0; });
+t.push("The report doesn't cover " + join(missing) + ".");
+blocking = blocking || nNamed < _q1;
+}
+if ((a.otherFlags.length || a.placeholderFlags.length) && nSolved < _q1) {
+t.push("Some flags don't match the format ARKX issues. Please copy each flag exactly as the platform returned it.");
+blocking = true;
+} else if (a.otherFlags.length) {
+}
+var namedUnsolved = a.levelsNamed.filter(function (n) { return a.levelsWithFlag.indexOf(n) < 0; });
+if (nSolved < _q1) {
+if (wrongTrack) {  }
+else if (nSolved === 0) t.push("No level shows the flag it returned. Please add the flag for each level you solved, ideally all six.");
+else t.push("Only " + join(a.levelsWithFlag) + " show" + (nSolved === 1 ? "s" : "") + " a flag. Please complete more levels, ideally all six, and add each flag.");
+blocking = true;
+} else if (namedUnsolved.length) {
+}
+if (a.images === 0) {
+t.push("There are no screenshots. Please add a screenshot of each solved level.");
+blocking = true;
+} else if (a.images < _q2) {
+}
+var thin = a.levelsWithFlag.filter(function (n) { return a.levels[n].partsMissing.length >= 3; });
+if (thin.length) {
+t.push("The write-up for " + join(thin) + " is missing most of the five parts (result, exploit, root cause, impact and severity, mapping).");
+blocking = blocking || thin.length > nSolved - _q1;
+}
+if (a.chars < _q3 && nNamed >= 4) {
+t.push("The report is very short. Please include your exact prompts and the responses for each level.");
+blocking = true;
+}
+if (a.residue.length) {
+t.push("Some template or placeholder text is still in the report. Please remove it.");
+blocking = true;
+}
+if (a.hedges >= 8) {
+if (nSolved < _q1) blocking = true;
+}
+return { verdict: blocking ? "fix" : "ready", reasons: t };
+}
+async function checkBytes(name, bytes) {
+var r;
+try { r = await readReport(name, bytes); }
+catch (e) {
+return { verdict: "wrong_file", reasons: ["The file couldn't be opened. Please upload the report as a PDF or .docx."],
+};
+}
+var a = analyse(r.text, r.images), v = verdict(a);
+v.levelsWithFlag = a.levelsWithFlag;
+v.screenshots = a.images;
+return v;
+}
+async function checkFile(file) {
+return checkBytes(file.name, new Uint8Array(await file.arrayBuffer()));
+}
+root.PreReview = { checkFile: checkFile, checkBytes: checkBytes, analyse: analyse, verdict: verdict,
+REQUIRED: REQUIRED.map(function (l) { return l[0]; }) };
+})(typeof window !== "undefined" ? window : globalThis);
+
+</script>
+<script>
+(function () {
+var LIMIT = 3;
+var input = document.getElementById("file"), drop = document.getElementById("drop");
+var quotaEl = document.getElementById("quota"), result = document.getElementById("result");
+if (window.pdfjsLib) window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+function today() { return new Date().toISOString().slice(0, 10); }
+function used() {
+try { var s = JSON.parse(localStorage.getItem("arkx-checks") || "{}"); return s.day === today() ? s.n : 0; }
+catch (e) { return 0; }
+}
+function spend() {
+try { localStorage.setItem("arkx-checks", JSON.stringify({ day: today(), n: used() + 1 })); } catch (e) {}
+}
+function showQuota() {
+var left = Math.max(0, LIMIT - used());
+quotaEl.textContent = left ? left + " of " + LIMIT + " checks left today"
+: "You've used today's " + LIMIT + " checks. They reset at 00:00 UTC.";
+input.disabled = !left;
+drop.classList.toggle("disabled", !left);
+}
+function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+function levels(withFlag) {
+return PreReview.REQUIRED.map(function (n) {
+var on = withFlag.indexOf(n) >= 0;
+return '<div class="lv' + (on ? " on" : "") + '" aria-label="' + esc(n) + (on ? ": flag found" : ": no flag found") + '"><span class="dot"></span>' + esc(n) + "</div>";
+}).join("");
+}
+document.getElementById("ex-levels").innerHTML = levels(["Bad Robot", "The Shape Shifter"]);
+var LABEL = { ready: "Ready to upload", fix: "Fix before uploading", wrong_file: "This isn't the report" };
+function render(name, r) {
+var body;
+if (r.verdict === "ready") {
+body = "<p>Nothing obvious is missing. Upload this file on the platform; a reviewer will read it there.</p>" +
+(r.reasons.length ? "<p><b>Worth a look before you upload:</b></p><ul>" + r.reasons.map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("") + "</ul>" : "");
+} else {
+body = "<p><b>" + (r.verdict === "fix" ? "Fix these before you upload:" : "Please check the file:") + "</b></p><ul>" +
+r.reasons.map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("") + "</ul>";
+}
+if (r.verdict !== "wrong_file") body += '<div><p class="note" style="margin-bottom:.4rem">Levels where a flag was found</p><div class="levels">' + levels(r.levelsWithFlag || []) + "</div></div>";
+result.innerHTML = '<div class="result-head"><span class="pill ' + r.verdict + '">' + LABEL[r.verdict] + '</span><span class="fname">' + esc(name) + "</span></div>" +
+'<div class="result-body">' + body + "</div>";
+}
+async function run(file) {
+if (!file) return;
+if (!/\.(pdf|docx|odt)$/i.test(file.name)) {
+result.innerHTML = '<div class="result-head"><span class="pill wrong_file">Unsupported file</span><span class="fname">' + esc(file.name) +
+'</span></div><div class="result-body"><p>Please choose a PDF, Word (.docx) or .odt file. This did not use one of your checks.</p></div>';
+return;
+}
+if (used() >= LIMIT) { showQuota(); return; }
+result.innerHTML = '<div class="busy">Reading ' + esc(file.name) + "...</div>";
+var r = await PreReview.checkFile(file);
+spend(); showQuota(); render(file.name, r);
+input.value = "";
+}
+input.addEventListener("change", function () { run(input.files[0]); });
+["dragenter", "dragover"].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); if (!input.disabled) drop.classList.add("over"); }); });
+["dragleave", "drop"].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove("over"); }); });
+drop.addEventListener("drop", function (e) { if (!input.disabled && e.dataTransfer.files[0]) run(e.dataTransfer.files[0]); });
+showQuota();
+})();
+</script>
