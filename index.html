@@ -66,6 +66,7 @@ code, .mono { font-family: var(--mono); font-size: 0.85em; }
 .lv.on .dot { background: var(--ready); border-color: var(--ready); }
 .lv:not(.on) { color: var(--muted); }
 .note { font-size: 0.85rem; color: var(--muted); }
+.notsent { background: var(--accent-soft); border-left: 3px solid var(--accent); border-radius: 4px; padding: 0.6rem 0.8rem; font-size: 0.9rem; }
 .busy { padding: 1.25rem; color: var(--muted); font-family: var(--mono); font-size: 0.85rem; }
 footer { font-size: 0.8rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 1rem; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
@@ -75,7 +76,8 @@ footer { font-size: 0.8rem; color: var(--muted); border-top: 1px solid var(--lin
   <header>
     <div class="eyebrow">ARKX practical test</div>
     <h1>Check your report before you upload it</h1>
-    <p class="lede">Drop in your report and see straight away whether anything is missing. Fix it, check again, and upload it on the platform when it's ready.</p>
+    <p class="lede">Drop in your report and see straight away whether anything is missing. Fix it, check again, then upload it in Talent Flow when it's ready.</p>
+    <p class="notsent"><b>This page does not submit your report.</b> Only a report uploaded in Talent Flow, in the ARKX report step, reaches the reviewers.</p>
     <p class="privacy"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.5" d="M4 7V5a4 4 0 0 1 8 0v2M3 7h10v7H3z"/></svg>
       <span>Your file stays on your computer. It is read in this browser tab and is not uploaded or stored anywhere.</span></p>
   </header>
@@ -108,7 +110,7 @@ footer { font-size: 0.8rem; color: var(--muted); border-top: 1px solid var(--lin
     </div>
   </section>
 
-  <footer>This is an automatic first check, not the review. A ready result means nothing obvious is missing; a reviewer still reads every report. You can run 3 checks a day.</footer>
+  <footer>This is an automatic first check, not the review, and it does not submit anything. A ready result means nothing obvious is missing; your report is reviewed only after you upload it in Talent Flow. You can run 3 checks a day.</footer>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -409,14 +411,17 @@ return '<div class="lv' + (on ? " on" : "") + '" aria-label="' + esc(n) + (on ? 
 }
 document.getElementById("ex-levels").innerHTML = levels(["Bad Robot", "The Shape Shifter"]);
 var LABEL = { ready: "Ready to upload", fix: "Fix before uploading", wrong_file: "This isn't the report" };
+var NOT_SENT = '<div class="notsent"><b>Not submitted yet.</b> This check does not send your report anywhere. ';
 function render(name, r) {
 var body;
 if (r.verdict === "ready") {
-body = "<p>Nothing obvious is missing. Upload this file on the platform; a reviewer will read it there.</p>" +
+body = NOT_SENT + "To submit it, upload this file in Talent Flow, in the ARKX report step.</div>" +
+"<p>Nothing obvious is missing. A reviewer will read the report after you upload it in Talent Flow.</p>" +
 (r.reasons.length ? "<p><b>Worth a look before you upload:</b></p><ul>" + r.reasons.map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("") + "</ul>" : "");
 } else {
 body = "<p><b>" + (r.verdict === "fix" ? "Fix these before you upload:" : "Please check the file:") + "</b></p><ul>" +
-r.reasons.map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("") + "</ul>";
+r.reasons.map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("") + "</ul>" +
+NOT_SENT + "When the report is fixed, upload it in Talent Flow, in the ARKX report step.</div>";
 }
 if (r.verdict !== "wrong_file") body += '<div><p class="note" style="margin-bottom:.4rem">Levels where a flag was found</p><div class="levels">' + levels(r.levelsWithFlag || []) + "</div></div>";
 result.innerHTML = '<div class="result-head"><span class="pill ' + r.verdict + '">' + LABEL[r.verdict] + '</span><span class="fname">' + esc(name) + "</span></div>" +
